@@ -1,0 +1,15 @@
+name: af-benchmark
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python = 3.10
+  - pytest >= 6.1.1
+  - pytest-benchmark >= 3.4.1
+  - cupy
+  - numba
+  - matplotlib
+  - pip
+  - pip:
+    - arrayfire
+    - dpnp
