@@ -22,6 +22,11 @@ Create `results.csv` comparing test results
     pytest-benchmark compare results.json --csv=results.csv --group-by='name'
 ```
 
-Create graphs:
+To create graphs after creating the `results.json`, run:
+```sh
+    python graphs.py
+```
+To modify the tests being shown modify the `tests` list at the top of the `graphs.py` file.
 
-WIP
+Example:
+<img src="img/comparison.png"></img>

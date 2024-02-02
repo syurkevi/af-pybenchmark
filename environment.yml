@@ -8,6 +8,7 @@ dependencies:
   - pytest-benchmark >= 3.4.1
   - cupy
   - numba
+  - pillow = 9.0.0
   - matplotlib
   - pip
   - pip:
