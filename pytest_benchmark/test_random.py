@@ -25,9 +25,10 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************
 
-import numpy as np
 import pytest
 
+import arrayfire as af
+import numpy as np
 import dpnp
 import cupy
 
@@ -35,10 +36,11 @@ ROUNDS = 30
 ITERATIONS = 4
 
 NNUMBERS = 2**16
-IDS = ["dpnp", "numpy", "cupy"]
+PKGS = [dpnp, np, cupy, af]
+IDS = [pkg.__name__ for pkg in PKGS]
 
 @pytest.mark.parametrize(
-    "pkg", [dpnp, np, cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestRandom:
     def test_beta(self, benchmark, pkg):

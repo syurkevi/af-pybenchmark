@@ -27,6 +27,7 @@
 
 import pytest
 
+import arrayfire as af
 import numpy as np
 import dpnp
 import cupy
@@ -37,31 +38,28 @@ ITERATIONS = 1
 NSIZE = 2**8 # Array column size
 
 DTYPE = "float32"
-IDS = ["dpnp", "numpy", "cupy"]
-
-def generate_arrays(pkg, count):
-    arr_list = []
-    pkg = pkg.__name__
-    if "cupy" == pkg:
-        for i in range(count):
-            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-        cupy.cuda.runtime.deviceSynchronize()
-    # elif "arrayfire" == pkg:
-    #     for i in range(count):  
-    #         arr_list.append(arrayfire.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)) / NSIZE)
-    elif "dpnp" == pkg:
-        for i in range(count):
-            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-    elif "numpy" == pkg:
-        for i in range(count):
-            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-
-    return arr_list
+PKGS = [dpnp, np, cupy, af]
+IDS = [pkg.__name__ for pkg in PKGS]
 
 @pytest.mark.parametrize(
-    "pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestElementwise:
+    def test_group_elementwise(self, benchmark, pkg):
+        setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
+
+        def func(arr):
+            return pkg.exp(pkg.cos(pkg.arcsinh(arr))) +\
+                pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
+
+        result = benchmark.pedantic(
+            target=func,
+            setup=setup,
+            rounds=ROUNDS,
+            iterations=ITERATIONS
+        )
+
+    '''
     def test_arccos(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
@@ -291,3 +289,24 @@ class TestElementwise:
             rounds=ROUNDS,
             iterations=ITERATIONS
         )
+    '''
+
+def generate_arrays(pkg, count):
+    arr_list = []
+    pkg = pkg.__name__
+    if "cupy" == pkg:
+        for i in range(count):
+            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+        cupy.cuda.runtime.deviceSynchronize()
+    elif "arrayfire" == pkg:
+        af.device_gc()
+        for i in range(count):  
+            arr_list.append(af.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "dpnp" == pkg:
+        for i in range(count):
+            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "numpy" == pkg:
+        for i in range(count):
+            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+
+    return arr_list

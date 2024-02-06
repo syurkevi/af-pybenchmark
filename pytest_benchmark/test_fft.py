@@ -25,9 +25,10 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************
 
-import numpy as np
 import pytest
 
+import arrayfire as af
+import numpy as np
 import dpnp
 import cupy
 
@@ -37,39 +38,36 @@ ITERATIONS = 1
 NSIZE = 2**8 # Array column size
 
 DTYPE = "float32"
-IDS = ["dpnp", "numpy", "cupy"]
+PKGS = [dpnp, np, cupy, af]
+IDS = [pkg.__name__ for pkg in PKGS]
 
-def generate_arrays(function, count):
+def generate_arrays(pkg, count):
     arr_list = []
-
-    pkg = None
-    try:
-        pkg = function.__module__
-    except AttributeError:
-        pkg = function.__class__.__module__
+    pkg = pkg.__name__
     
-    if "cupy" in pkg:
+    if "cupy" == pkg:
         for i in range(count):
-            arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
         cupy.cuda.runtime.deviceSynchronize()
-    # elif "arrayfire" in function.__name__:
-    #     for i in range(count):  
-    #         arr_list.append(arrayfire.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-    elif "dpnp" in pkg:
+    elif "arrayfire" == pkg:
+        af.device_gc()
+        for i in range(count):  
+            arr_list.append(af.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "dpnp" == pkg:
         for i in range(count):
-            arr_list.append(dpnp.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-    elif "numpy" in pkg:
+            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "numpy" == pkg:
         for i in range(count):
-            arr_list.append(np.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
 
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestFFT:
     def test_fft(self, benchmark, pkg):
-        setup = lambda: (generate_arrays(pkg.fft.fft, 1), {})
+        setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
             target=pkg.fft.fft,

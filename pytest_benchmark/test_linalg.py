@@ -25,9 +25,10 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 # *****************************************************************************
 
-import numpy as np
 import pytest
 
+import arrayfire as af
+import numpy as np
 import dpnp
 import cupy
 
@@ -38,7 +39,8 @@ NSIZE = 2**8 # Array column size
 NTSIZE = 2**4 # Tensor column size
 
 DTYPE = "float32"
-IDS = ["dpnp", "numpy", "cupy"]
+PKGS = [dpnp, np, cupy, af]
+IDS = [pkg.__name__ for pkg in PKGS]
 
 def generate_arrays(pkg, count):
     arr_list = []
@@ -47,9 +49,10 @@ def generate_arrays(pkg, count):
         for i in range(count):
             arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
         cupy.cuda.runtime.deviceSynchronize()
-    # elif "arrayfire" == pkg:
-    #     for i in range(count):  
-    #         arr_list.append(arrayfire.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "arrayfire" == pkg:
+        af.device_gc()
+        for i in range(count):  
+            arr_list.append(af.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
@@ -79,7 +82,7 @@ def generate_tensor(pkg, count):
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class Eindot:
     def test_dot_a_b(self, benchmark, pkg):
@@ -135,7 +138,7 @@ class Eindot:
 
         
 @pytest.mark.parametrize(
-    "pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestLinalg:
     # def test_lstsq(self, benchmark, pkg):
