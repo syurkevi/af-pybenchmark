@@ -13,7 +13,7 @@ import pytest
 
 import arrayfire as af
 import numpy as np
-import dpnp
+#import dpnp
 import cupy
 
 import math
@@ -25,7 +25,8 @@ MSIZE = 4000 # Array column size
 NSIZE = 100
 
 DTYPE = "float32"
-PKGS = [dpnp, np, cupy, af]
+#PKGS = [dpnp, np, cupy, af]
+PKGS = [np, cupy, af]
 IDS = [pkg.__name__ for pkg in PKGS]
 
 sqrt2 = math.sqrt(2.0)
@@ -121,8 +122,9 @@ def black_scholes_arrayfire(S, X, R, V, T):
     C = S * cnd_d1 - (X * af.exp((-R) * T) * cnd_d2)
     P = X * af.exp((-R) * T) * (1 - cnd_d2) - (S * (1 -cnd_d1))
 
-    af.eval(C)
-    af.eval(P)
+    #af.eval(C, P) #TODO test
+    af.eval([C])
+    af.eval([P])
     af.sync()
 
     return (C, P)
@@ -137,7 +139,8 @@ def generate_arrays(pkg, count):
         cupy.cuda.runtime.deviceSynchronize()
     elif "arrayfire" == pkg:
         for i in range(count):  
-            arr_list.append(af.randu(MSIZE, NSIZE))
+            #arr_list.append(af.randu(MSIZE, NSIZE))
+            arr_list.append(af.randu((MSIZE, NSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.random.rand(MSIZE, NSIZE))

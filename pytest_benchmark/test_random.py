@@ -29,75 +29,70 @@ import pytest
 
 import arrayfire as af
 import numpy as np
-import dpnp
+#import dpnp
 import cupy
+import arrayfire
 
 ROUNDS = 30
 ITERATIONS = 4
 
 NNUMBERS = 2**16
-PKGS = [dpnp, np, cupy, af]
-IDS = [pkg.__name__ for pkg in PKGS]
+IDS = ["numpy", "cupy"]
+IDSAF = ["arrayfire", "numpy", "cupy"]
+#IDS = ["dpnp", "numpy", "cupy"]
 
 @pytest.mark.parametrize(
-    "pkg", PKGS, ids=IDS
+    "pkg", [arrayfire, np, cupy], ids=IDSAF
+    #"pkg", [dpnp, np, cupy], ids=IDS
 )
 class TestRandom:
-    def test_beta(self, benchmark, pkg):
-        result = benchmark.pedantic(
-            target=pkg.random.beta,
-            args=(
-                4.0,
-                5.0,
-                NNUMBERS,
-            ),
-            rounds=ROUNDS,
-            iterations=ITERATIONS,
-        )
+#   def test_beta(self, benchmark, pkg):
+#       result = benchmark.pedantic(
+#           target=pkg.random.beta,
+#           args=(
+#               4.0,
+#               5.0,
+#               NNUMBERS,
+#           ),
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS,
+#       )
 
-    def test_exponential(self, benchmark, pkg):
-        result = benchmark.pedantic(
-            target=pkg.random.exponential,
-            args=(
-                4.0,
-                NNUMBERS,
-            ),
-            rounds=ROUNDS,
-            iterations=ITERATIONS,
-        )
+#   def test_exponential(self, benchmark, pkg):
+#       result = benchmark.pedantic(
+#           target=pkg.random.exponential,
+#           args=(
+#               4.0,
+#               NNUMBERS,
+#           ),
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS,
+#       )
 
-    def test_gamma(self, benchmark, pkg):
-        result = benchmark.pedantic(
-            target=pkg.random.gamma,
-            args=(
-                2.0,
-                4.0,
-                NNUMBERS,
-            ),
-            rounds=ROUNDS,
-            iterations=ITERATIONS,
-        )
+#   def test_gamma(self, benchmark, pkg):
+#       result = benchmark.pedantic(
+#           target=pkg.random.gamma,
+#           args=(
+#               2.0,
+#               4.0,
+#               NNUMBERS,
+#           ),
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS,
+#       )
 
     def test_normal(self, benchmark, pkg):
         result = benchmark.pedantic(
-            target=pkg.random.normal,
-            args=(
-                0.0,
-                1.0,
-                NNUMBERS,
-            ),
+            target=pkg.randn if pkg == arrayfire else pkg.random.normal,
+            args=((NNUMBERS,),) if pkg == arrayfire else (0.0, 1.0, NNUMBERS),
             rounds=ROUNDS,
             iterations=ITERATIONS,
         )
 
     def test_uniform(self, benchmark, pkg):
         result = benchmark.pedantic(
-            target=pkg.random.uniform,
-            args=(
-                0.0,
-                1.0,
-                NNUMBERS,
-            ),
+            target=pkg.randu if pkg == arrayfire else pkg.random.uniform,
+            args=((NNUMBERS,),) if pkg == arrayfire else (0.0, 1.0, NNUMBERS),
             rounds=ROUNDS,
             iterations=ITERATIONS,
         )

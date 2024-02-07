@@ -29,8 +29,9 @@ import pytest
 
 import arrayfire as af
 import numpy as np
-import dpnp
+#import dpnp
 import cupy
+import arrayfire
 
 ROUNDS = 30
 ITERATIONS = 1
@@ -38,19 +39,52 @@ ITERATIONS = 1
 NSIZE = 2**8 # Array column size
 
 DTYPE = "float32"
-PKGS = [dpnp, np, cupy, af]
-IDS = [pkg.__name__ for pkg in PKGS]
+PKGS = [np, cupy, af]
+#PKGS = [dpnp, np, cupy, af]
+#IDS = [pkg.__name__ for pkg in PKGS]
+#IDS = ["dpnp", "numpy", "cupy"]
+#IDS = ["numpy", "cupy"]
+IDSAF = ["arrayfire", "numpy", "cupy"]
+
+def generate_arrays(pkg, count):
+    arr_list = []
+    pkg = pkg.__name__
+    if "cupy" == pkg:
+        for i in range(count):
+            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+        cupy.cuda.runtime.deviceSynchronize()
+    # elif "arrayfire" == pkg:
+    #     for i in range(count):  
+    #         arr_list.append(arrayfire.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)) / NSIZE)
+    elif "dpnp" == pkg:
+        for i in range(count):
+            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "numpy" == pkg:
+        for i in range(count):
+            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+    elif "arrayfire" == pkg:
+        for i in range(count):
+            #arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            arr_list.append(arrayfire.moddims(arrayfire.range((NSIZE * NSIZE,), dtype=arrayfire.f32)+1, (NSIZE, NSIZE)))
+
+    return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", PKGS, ids=IDS
+    "pkg", [arrayfire,np,cupy], ids=IDSAF
+    #"pkg", [np,cupy], ids=IDS
+    #"pkg", [dpnp,np,cupy], ids=IDS
 )
 class TestElementwise:
     def test_group_elementwise(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
         def func(arr):
-            return pkg.exp(pkg.cos(pkg.arcsinh(arr))) +\
-                pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
+            if pkg == arrayfire:
+                return pkg.exp(pkg.cos(pkg.asinh(arr))) +\
+                    pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
+            else:
+                return pkg.exp(pkg.cos(pkg.arcsinh(arr))) +\
+                    pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
 
         result = benchmark.pedantic(
             target=func,
@@ -64,7 +98,7 @@ class TestElementwise:
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
         result = benchmark.pedantic(
-            target=pkg.arccos,
+            target=pkg.acos if pkg == arrayfire else pkg.arccos,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -74,7 +108,7 @@ class TestElementwise:
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
-            target=pkg.arccosh,
+            target=pkg.acosh if pkg == arrayfire else pkg.arccosh,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -84,7 +118,7 @@ class TestElementwise:
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
         result = benchmark.pedantic(
-            target=pkg.arcsin,
+            target=pkg.asin if pkg == arrayfire else pkg.arcsin,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -94,7 +128,7 @@ class TestElementwise:
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
-            target=pkg.arcsinh,
+            target=pkg.asinh if pkg == arrayfire else pkg.arcsinh,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -104,7 +138,7 @@ class TestElementwise:
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
-            target=pkg.arctan,
+            target=pkg.atan if pkg == arrayfire else pkg.arctan,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -114,7 +148,7 @@ class TestElementwise:
         setup = lambda: ([(generate_arrays(pkg, 1)[0] - 1) / (NSIZE * NSIZE)], {})
 
         result = benchmark.pedantic(
-            target=pkg.arctanh,
+            target=pkg.atanh if pkg == arrayfire else pkg.arctanh,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -170,15 +204,15 @@ class TestElementwise:
             iterations=ITERATIONS
         )
 
-    def test_degrees(self, benchmark, pkg):
-        setup = lambda: (generate_arrays(pkg, 1), {})
+#   def test_degrees(self, benchmark, pkg):
+#       setup = lambda: (generate_arrays(pkg, 1), {})
 
-        result = benchmark.pedantic(
-            target=pkg.degrees,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
+#       result = benchmark.pedantic(
+#           target=pkg.degrees,
+#           setup=setup,
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS
+#       )
 
     def test_exp(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
@@ -190,15 +224,15 @@ class TestElementwise:
             iterations=ITERATIONS
         )
 
-    def test_exp2(self, benchmark, pkg):
-        setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
+#   def test_exp2(self, benchmark, pkg):
+#       setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
-        result = benchmark.pedantic(
-            target=pkg.exp2,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
+#       result = benchmark.pedantic(
+#           target=pkg.exp2,
+#           setup=setup,
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS
+#       )
 
     def test_expm1(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
@@ -250,15 +284,15 @@ class TestElementwise:
             iterations=ITERATIONS
         )
 
-    def test_square(self, benchmark, pkg):
-        setup = lambda: (generate_arrays(pkg, 1), {})
+#   def test_square(self, benchmark, pkg):
+#       setup = lambda: (generate_arrays(pkg, 1), {})
 
-        result = benchmark.pedantic(
-            target=pkg.square,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
+#       result = benchmark.pedantic(
+#           target=pkg.square,
+#           setup=setup,
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS
+#       )
 
     def test_tan(self, benchmark, pkg):
         setup = lambda: (generate_arrays(pkg, 1), {})
@@ -280,33 +314,33 @@ class TestElementwise:
             iterations=ITERATIONS
         )
 
-    def test_reciprocal(self, benchmark, pkg):
-        setup = lambda: (generate_arrays(pkg, 1), {})
+#   def test_reciprocal(self, benchmark, pkg):
+#       setup = lambda: (generate_arrays(pkg, 1), {})
 
-        result = benchmark.pedantic(
-            target=pkg.reciprocal,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
-    '''
+#       result = benchmark.pedantic(
+#           target=pkg.reciprocal,
+#           setup=setup,
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS
+#       )
+     '''
 
-def generate_arrays(pkg, count):
-    arr_list = []
-    pkg = pkg.__name__
-    if "cupy" == pkg:
-        for i in range(count):
-            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-        cupy.cuda.runtime.deviceSynchronize()
-    elif "arrayfire" == pkg:
-        af.device_gc()
-        for i in range(count):  
-            arr_list.append(af.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-    elif "dpnp" == pkg:
-        for i in range(count):
-            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-    elif "numpy" == pkg:
-        for i in range(count):
-            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
-
-    return arr_list
+#def generate_arrays(pkg, count):
+#    arr_list = []
+#    pkg = pkg.__name__
+#    if "cupy" == pkg:
+#        for i in range(count):
+#            arr_list.append(cupy.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+#        cupy.cuda.runtime.deviceSynchronize()
+#    elif "arrayfire" == pkg:
+#        af.device_gc()
+#        for i in range(count):  
+#            arr_list.append(af.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+#    elif "dpnp" == pkg:
+#        for i in range(count):
+#            arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+#    elif "numpy" == pkg:
+#        for i in range(count):
+#            arr_list.append(np.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+#
+#    return arr_list

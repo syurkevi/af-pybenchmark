@@ -12,18 +12,21 @@
 
 import pytest
 
+import arrayfire
 import arrayfire as af
 import numpy as np
-import dpnp
+#import dpnp
 import cupy
 
-ROUNDS = 30
-ITERATIONS = 1
+ROUNDS = 3
+ITERATIONS = 100
 
-SAMPLES = 2**8 # Array column size
+SAMPLES = 2**20 # Array column size
 
 DTYPE = "float32"
-PKGS = [dpnp, np, cupy, af]
+#PKGS = [dpnp, np, cupy, af]
+PKGS = [cupy, arrayfire]
+#PKGS = [arrayfire]
 IDS = [pkg.__name__ for pkg in PKGS]
 
 @pytest.mark.parametrize(
@@ -42,14 +45,25 @@ class TestPi:
 def in_circle(x, y):
     return (x*x + y*y) < 1
 
+#def calc_pi_af(samples):
+#    af.random.set_seed(1)
+#    x = af.randu(samples)
+#    y = af.randu(samples)
+#    result =  4 * af.sum(in_circle(x, y)) / samples
+#
+#    af.eval(result)
+#    af.sync()
+#
+#    return result
+
 def calc_pi_af(samples):
-    af.random.set_seed(1)
-    x = af.randu(samples)
-    y = af.randu(samples)
+    #af.set_seed(1)
+    x = af.randu((samples,))
+    y = af.randu((samples,))
     result =  4 * af.sum(in_circle(x, y)) / samples
 
-    af.eval(result)
-    af.sync()
+    #af.eval(result)
+    af.sync(0)
 
     return result
 
@@ -60,10 +74,12 @@ def calc_pi_numpy(samples):
     return 4. * np.sum(in_circle(x, y)) / samples
 
 def calc_pi_cupy(samples):
-    cupy.random.seed(1)
+    #cupy.random.seed(1)
     x = cupy.random.rand(samples, dtype=np.float32)
     y = cupy.random.rand(samples, dtype=np.float32)
-    return 4. * cupy.sum(in_circle(x, y)) / samples
+    result = 4. * cupy.sum(in_circle(x, y)) / samples
+    cupy.cuda.runtime.deviceSynchronize();
+    return result
 
 def calc_pi_dpnp(samples):
     dpnp.random.seed(1)

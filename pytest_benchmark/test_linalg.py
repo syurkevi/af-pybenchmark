@@ -29,8 +29,9 @@ import pytest
 
 import arrayfire as af
 import numpy as np
-import dpnp
+#import dpnp
 import cupy
+import arrayfire
 
 ROUNDS = 30
 ITERATIONS = 1
@@ -39,26 +40,37 @@ NSIZE = 2**8 # Array column size
 NTSIZE = 2**4 # Tensor column size
 
 DTYPE = "float32"
-PKGS = [dpnp, np, cupy, af]
-IDS = [pkg.__name__ for pkg in PKGS]
+#PKGS = [dpnp, np, cupy, arrayfire]
+PKGS = [np, cupy, arrayfire]
+#IDS = [pkg.__name__ for pkg in PKGS]
+IDS = ["numpy", "cupy"]
+IDSAF = ["arrayfire", "numpy", "cupy"]
+#IDS = ["numpy", "cupy"]
+#IDS = ["dpnp", "numpy", "cupy"]
 
 def generate_arrays(pkg, count):
     arr_list = []
     pkg = pkg.__name__
     if "cupy" == pkg:
         for i in range(count):
-            arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            #arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            arr_list.append(cupy.random.normal(size=NSIZE * NSIZE).reshape((NSIZE, NSIZE)).astype(DTYPE))
         cupy.cuda.runtime.deviceSynchronize()
-    elif "arrayfire" == pkg:
-        af.device_gc()
-        for i in range(count):  
-            arr_list.append(af.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+#    elif "arrayfire" == pkg:
+#        af.device_gc()
+#        for i in range(count):  
+#            arr_list.append(af.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
     elif "numpy" == pkg:
         for i in range(count):
-            arr_list.append(np.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            arr_list.append(np.random.normal(size=NSIZE * NSIZE).reshape((NSIZE, NSIZE)).astype(DTYPE))
+    elif "arrayfire" == pkg:
+        for i in range(count):
+            #arr_list.append(np.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
+            # TODO array-api
+            arr_list.append(arrayfire.randu((NSIZE, NSIZE), dtype=arrayfire.f32))
 
     return arr_list
 
@@ -78,11 +90,18 @@ def generate_tensor(pkg, count):
     elif "numpy" == pkg:
         for i in range(count):
             arr_list.append(np.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
+    elif "arrayfire" == pkg:
+        for i in range(count):
+            #arr_list.append(np.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
+            #TODO array api
+            arr_list.append(arrayfire.moddims(arrayfire.range((NTSIZE ** 3), dtype=DTYPE), (NTSIZE, NTSIZE, NTSIZE)))
     
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", PKGS, ids=IDS
+    "pkg", [np,cupy], ids=IDS
+    #"pkg", [arrayfire,np,cupy], ids=IDS
+    #"pkg", [dpnp,np,cupy], ids=IDS
 )
 class Eindot:
     def test_dot_a_b(self, benchmark, pkg):
@@ -138,7 +157,9 @@ class Eindot:
 
         
 @pytest.mark.parametrize(
-    "pkg", PKGS, ids=IDS
+    "pkg", [arrayfire,np,cupy], ids=IDSAF
+    #"pkg", [np,cupy], ids=IDS
+    #"pkg", [dpnp,np,cupy], ids=IDS
 )
 class TestLinalg:
     # def test_lstsq(self, benchmark, pkg):
@@ -153,52 +174,50 @@ class TestLinalg:
     #     )
     def test_cholesky(self, benchmark, pkg):
         arr = generate_arrays(pkg, 1)[0]
-        setup = lambda: ([arr + arr.T], {})
-
+        setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
+        
         result = benchmark.pedantic(
-            target=pkg.linalg.cholesky,
+            target= pkg.cholesky if pkg == arrayfire else pkg.linalg.cholesky,
             setup=setup,
             rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
+            iterations=ITERATIONS)
 
     def test_svd(self, benchmark, pkg):
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
-            target=pkg.linalg.svd,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS
-        )
-    
+           target= pkg.svd if pkg == arrayfire else pkg.linalg.svd,
+           setup=setup,
+           rounds=ROUNDS,
+           iterations=ITERATIONS)
+   
     def test_inv(self, benchmark, pkg):
         arr = generate_arrays(pkg, 1)[0]
-        setup = lambda: ([arr @ arr.T], {})
+        setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
 
         result = benchmark.pedantic(
-            target=pkg.linalg.inv,
+            target=pkg.inverse if pkg == arrayfire else pkg.linalg.inv,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
         )
 
-    # def test_pinv(self, benchmark, pkg):
-    #     setup = lambda: (generate_arrays(pkg, 1), {})
+    def test_pinv(self, benchmark, pkg):
+        setup = lambda: (generate_arrays(pkg, 1), {})
 
-    #     result = benchmark.pedantic(
-    #         target=pkg.linalg.pinv,
-    #         setup=setup,
-    #         rounds=ROUNDS,
-    #         iterations=ITERATIONS
-    #     )
+        result = benchmark.pedantic(
+             target=pkg.pinverse if pkg == arrayfire else pkg.linalg.pinv,
+             setup=setup,
+             rounds=ROUNDS,
+             iterations=ITERATIONS
+        )
 
     def test_det(self, benchmark, pkg):
         arr = generate_arrays(pkg, 1)[0]
-        setup = lambda: ([arr @ arr.T], {})
+        setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
 
         result = benchmark.pedantic(
-            target=pkg.linalg.det,
+            target=pkg.det if pkg == arrayfire else pkg.linalg.det,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
@@ -208,7 +227,7 @@ class TestLinalg:
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(
-            target=pkg.linalg.norm,
+            target=pkg.norm if pkg == arrayfire else pkg.linalg.norm,
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
