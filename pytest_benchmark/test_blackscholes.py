@@ -10,25 +10,55 @@
 ########################################################
 
 import pytest
-
-import arrayfire as af
-import numpy as np
-#import dpnp
-import cupy
-
 import math
+
+PKGS = []
+IDS  = []
+
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
+
+print("imported [" + ", ".join(IDS) + "] packages for benchmarking")
 
 ROUNDS = 30
 ITERATIONS = 1
 
-MSIZE = 4000 # Array column size
-NSIZE = 100
+MSIZE = 4096 # Array column size
+NSIZE = 4096
 
 DTYPE = "float32"
-#PKGS = [dpnp, np, cupy, af]
-PKGS = [np, cupy, af]
-IDS = [pkg.__name__ for pkg in PKGS]
-
 sqrt2 = math.sqrt(2.0)
 
 @pytest.mark.parametrize(
@@ -55,7 +85,7 @@ def black_scholes_numpy(S, X, R, V, T):
         temp = (x > 0)
         erf = lambda arr : np.exp(-arr * arr)
         return temp * (0.5 + erf(x/sqrt2)/2) + (1 - temp) * (0.5 - erf((-x)/sqrt2)/2)
-    
+
     d1 = np.log(S / X)
     d1 = d1 + (R + (V * V) * 0.5) * T
     d1 = d1 / (V * np.sqrt(T))
@@ -92,7 +122,7 @@ def black_scholes_cupy(S, X, R, V, T):
         temp = (x > 0)
         erf = lambda arr : cupy.exp(-arr * arr)
         return temp * (0.5 + erf(x/sqrt2)/2) + (1 - temp) * (0.5 - erf((-x)/sqrt2)/2)
-    
+
     d1 = cupy.log(S / X)
     d1 = d1 + (R + (V * V) * 0.5) * T
     d1 = d1 / (V * cupy.sqrt(T))
@@ -122,11 +152,7 @@ def black_scholes_arrayfire(S, X, R, V, T):
     C = S * cnd_d1 - (X * af.exp((-R) * T) * cnd_d2)
     P = X * af.exp((-R) * T) * (1 - cnd_d2) - (S * (1 -cnd_d1))
 
-    #af.eval(C, P) #TODO test
-    af.eval([C])
-    af.eval([P])
-    af.sync()
-
+    af.eval(C, P)
     return (C, P)
 
 

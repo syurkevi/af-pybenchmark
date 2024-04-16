@@ -27,24 +27,52 @@
 
 import pytest
 
-import arrayfire as af
-import numpy as np
-#import dpnp
-import cupy
-import arrayfire
+PKGS = []
+IDS  = []
+
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
+
+print("imported [" + ", ".join(IDS) + "] packages for benchmarking")
 
 ROUNDS = 30
 ITERATIONS = 1
 
-NSIZE = 2**8 # Array column size
+NSIZE = 2**9 # Array column size
 
 DTYPE = "float32"
-PKGS = [np, cupy, af]
-#PKGS = [dpnp, np, cupy, af]
-#IDS = [pkg.__name__ for pkg in PKGS]
-#IDS = ["dpnp", "numpy", "cupy"]
-#IDS = ["numpy", "cupy"]
-IDSAF = ["arrayfire", "numpy", "cupy"]
 
 def generate_arrays(pkg, count):
     arr_list = []
@@ -70,21 +98,22 @@ def generate_arrays(pkg, count):
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", [arrayfire,np,cupy], ids=IDSAF
-    #"pkg", [np,cupy], ids=IDS
-    #"pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestElementwise:
+    # cumulative elementwise benchmark
     def test_group_elementwise(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
         def func(arr):
             if pkg == arrayfire:
-                return pkg.exp(pkg.cos(pkg.asinh(arr))) +\
+                res = pkg.exp(pkg.cos(pkg.asinh(arr))) +\
                     pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
+                arrayfire.eval(res)
             else:
-                return pkg.exp(pkg.cos(pkg.arcsinh(arr))) +\
+                res = pkg.exp(pkg.cos(pkg.arcsinh(arr))) +\
                     pkg.cbrt(pkg.log(arr) * pkg.expm1(-pkg.sqrt(arr)))
+
 
         result = benchmark.pedantic(
             target=func,
@@ -93,7 +122,8 @@ class TestElementwise:
             iterations=ITERATIONS
         )
 
-    '''
+'''
+# individual elementwise benchmarks
     def test_arccos(self, benchmark, pkg):
         setup = lambda: ([generate_arrays(pkg, 1)[0] / (NSIZE * NSIZE)], {})
 
@@ -313,6 +343,7 @@ class TestElementwise:
             rounds=ROUNDS,
             iterations=ITERATIONS
         )
+'''
 
 #   def test_reciprocal(self, benchmark, pkg):
 #       setup = lambda: (generate_arrays(pkg, 1), {})
@@ -323,7 +354,6 @@ class TestElementwise:
 #           rounds=ROUNDS,
 #           iterations=ITERATIONS
 #       )
-     '''
 
 #def generate_arrays(pkg, count):
 #    arr_list = []

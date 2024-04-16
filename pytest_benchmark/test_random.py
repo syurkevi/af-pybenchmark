@@ -27,23 +27,53 @@
 
 import pytest
 
-import arrayfire as af
-import numpy as np
-#import dpnp
-import cupy
-import arrayfire
+PKGS = []
+IDS  = []
 
-ROUNDS = 30
-ITERATIONS = 4
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
 
-NNUMBERS = 2**16
-IDS = ["numpy", "cupy"]
-IDSAF = ["arrayfire", "numpy", "cupy"]
-#IDS = ["dpnp", "numpy", "cupy"]
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
+
+print("imported [" + ", ".join(IDS) + "] packages for benchmarking")
+
+ROUNDS = 10
+ITERATIONS = 400
+
+NNUMBERS = 2**20
 
 @pytest.mark.parametrize(
-    "pkg", [arrayfire, np, cupy], ids=IDSAF
-    #"pkg", [dpnp, np, cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestRandom:
 #   def test_beta(self, benchmark, pkg):

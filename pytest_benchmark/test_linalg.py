@@ -1,4 +1,3 @@
-# cython: language_level=3
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # Copyright (c) 2016-2024, Intel Corporation
@@ -27,26 +26,53 @@
 
 import pytest
 
-import arrayfire as af
-import numpy as np
-#import dpnp
-import cupy
-import arrayfire
+PKGS = []
+IDS  = []
 
-ROUNDS = 30
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
+
+print("imported [" + ", ".join(IDS) + "] packages for benchmarking")
+
+ROUNDS = 10
 ITERATIONS = 1
 
-NSIZE = 2**8 # Array column size
+NSIZE = 2**11 # Array column size
 NTSIZE = 2**4 # Tensor column size
 
 DTYPE = "float32"
-#PKGS = [dpnp, np, cupy, arrayfire]
-PKGS = [np, cupy, arrayfire]
-#IDS = [pkg.__name__ for pkg in PKGS]
-IDS = ["numpy", "cupy"]
-IDSAF = ["arrayfire", "numpy", "cupy"]
-#IDS = ["numpy", "cupy"]
-#IDS = ["dpnp", "numpy", "cupy"]
 
 def generate_arrays(pkg, count):
     arr_list = []
@@ -56,10 +82,6 @@ def generate_arrays(pkg, count):
             #arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
             arr_list.append(cupy.random.normal(size=NSIZE * NSIZE).reshape((NSIZE, NSIZE)).astype(DTYPE))
         cupy.cuda.runtime.deviceSynchronize()
-#    elif "arrayfire" == pkg:
-#        af.device_gc()
-#        for i in range(count):  
-#            arr_list.append(af.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
@@ -81,9 +103,6 @@ def generate_tensor(pkg, count):
         for i in range(count):
             arr_list.append(cupy.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
         cupy.cuda.runtime.deviceSynchronize()
-    # elif "arrayfire" == pkg:
-    #     for i in range(count):
-    #         arr_list.append(arrayfire.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
@@ -95,16 +114,15 @@ def generate_tensor(pkg, count):
             #arr_list.append(np.arange(0, NTSIZE ** 3, dtype=DTYPE).reshape((NTSIZE, NTSIZE, NTSIZE)))
             #TODO array api
             arr_list.append(arrayfire.moddims(arrayfire.range((NTSIZE ** 3), dtype=DTYPE), (NTSIZE, NTSIZE, NTSIZE)))
-    
+
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", [np,cupy], ids=IDS
-    #"pkg", [arrayfire,np,cupy], ids=IDS
-    #"pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class Eindot:
     def test_dot_a_b(self, benchmark, pkg):
+        print(backend)
         setup = lambda: (generate_arrays(pkg, 2), {})
 
         result = benchmark.pedantic(
@@ -155,11 +173,9 @@ class Eindot:
             iterations=ITERATIONS,
         )
 
-        
+
 @pytest.mark.parametrize(
-    "pkg", [arrayfire,np,cupy], ids=IDSAF
-    #"pkg", [np,cupy], ids=IDS
-    #"pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestLinalg:
     # def test_lstsq(self, benchmark, pkg):
@@ -172,15 +188,15 @@ class TestLinalg:
     #         rounds=ROUNDS,
     #         iterations=ITERATIONS,
     #     )
-    def test_cholesky(self, benchmark, pkg):
-        arr = generate_arrays(pkg, 1)[0]
-        setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
-        
-        result = benchmark.pedantic(
-            target= pkg.cholesky if pkg == arrayfire else pkg.linalg.cholesky,
-            setup=setup,
-            rounds=ROUNDS,
-            iterations=ITERATIONS)
+#   def test_cholesky(self, benchmark, pkg):
+#       arr = generate_arrays(pkg, 1)[0]
+#       setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
+
+#       result = benchmark.pedantic(
+#           target= pkg.cholesky if pkg == arrayfire else pkg.linalg.cholesky,
+#           setup=setup,
+#           rounds=ROUNDS,
+#           iterations=ITERATIONS)
 
     def test_svd(self, benchmark, pkg):
         setup = lambda: (generate_arrays(pkg, 1), {})
@@ -190,7 +206,7 @@ class TestLinalg:
            setup=setup,
            rounds=ROUNDS,
            iterations=ITERATIONS)
-   
+
     def test_inv(self, benchmark, pkg):
         arr = generate_arrays(pkg, 1)[0]
         setup = lambda: ([pkg.matmul(arr, arr.T)] if pkg == arrayfire else [arr @ arr.T], {})
@@ -222,7 +238,7 @@ class TestLinalg:
             rounds=ROUNDS,
             iterations=ITERATIONS
         )
-    
+
     def test_norm(self, benchmark, pkg):
         setup = lambda: (generate_arrays(pkg, 1), {})
 
@@ -231,4 +247,4 @@ class TestLinalg:
             setup=setup,
             rounds=ROUNDS,
             iterations=ITERATIONS
-        )   
+        )

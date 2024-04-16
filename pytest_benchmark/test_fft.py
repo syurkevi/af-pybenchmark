@@ -27,38 +27,61 @@
 
 import pytest
 
-import arrayfire as af
-import numpy as np
-import dpnp
-import cupy
-import arrayfire
+PKGS = []
+IDS  = []
 
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
+
+print("imported [" + ", ".join(IDS) + "] packages for benchmarking")
 ROUNDS = 30
 ITERATIONS = 1
 
 NSIZE = 2**8 # Array column size
 
 DTYPE = "float32"
-#PKGS = [dpnp, np, cupy, af]
-PKGS = [np, cupy, arrayfire]
-#IDS = [pkg.__name__ for pkg in PKGS]
-IDSAF = ["arrayfire", "numpy", "cupy"]
-#IDS = ["numpy", "cupy"]
-#IDS = ["dpnp", "numpy", "cupy"]
 
 def generate_arrays(pkg, count):
     arr_list = []
     pkg = pkg.__name__
-    
+
     if "cupy" == pkg:
         for i in range(count):
             #arr_list.append(cupy.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
             arr_list.append(cupy.random.normal(size=NSIZE * NSIZE).reshape((NSIZE, NSIZE)).astype(DTYPE))
         cupy.cuda.runtime.deviceSynchronize()
-    elif "arrayfire" == pkg:
-        af.device_gc()
-        for i in range(count):  
-            arr_list.append(af.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
     elif "dpnp" == pkg:
         for i in range(count):
             arr_list.append(dpnp.arange(1, NSIZE * NSIZE + 1, dtype=DTYPE).reshape((NSIZE, NSIZE)))
@@ -70,18 +93,15 @@ def generate_arrays(pkg, count):
         for i in range(count):
             #arr_list.append(np.arange(0, NSIZE * NSIZE, dtype=DTYPE).reshape((NSIZE, NSIZE)))
             # TODO array-api
-            arr_list.append(arrayfire.randu((NSIZE, NSIZE), dtype=arrayfire.f32))
+            arr_list.append(arrayfire.randn((NSIZE, NSIZE), dtype=arrayfire.f32))
 
     return arr_list
 
 @pytest.mark.parametrize(
-    "pkg", [arrayfire,np,cupy], ids=IDSAF
-    #"pkg", [np,cupy], ids=IDS
-    #"pkg", [dpnp,np,cupy], ids=IDS
+    "pkg", PKGS, ids=IDS
 )
 class TestFFT:
     def test_fft(self, benchmark, pkg):
-        #setup = lambda: (generate_arrays(pkg.fft.fft if pkg == arrayfire else pkg.fft, 1), {})
         setup = lambda: (generate_arrays(pkg, 1), {})
 
         result = benchmark.pedantic(

@@ -12,22 +12,50 @@
 
 import pytest
 
-import arrayfire
-import arrayfire as af
-import numpy as np
-#import dpnp
-import cupy
+PKGS = []
+IDS  = []
+
+try:
+    import numpy as np
+    PKGS.append(np)
+    IDS.append("np")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import dpnp
+    PKGS.append(dpnp)
+    IDS.append("dpnp")
+except:
+    print("Could not import dpnp package")
+
+try:
+    import cupy
+    PKGS.append(cupy)
+    IDS.append("cupy")
+except:
+    print("Could not import cupy package")
+
+try:
+    import arrayfire
+    af = arrayfire
+
+    # benchmark specific backend and device TODO: argc, argv
+    #arrayfire.set_backend(arrayfire.BackendType.oneapi)
+    #arrayfire.set_device(0)
+    #arrayfire.info()
+
+    PKGS.append(arrayfire)
+    IDS.append("arrayfire")
+except:
+    print("Could not import arrayfire package")
 
 ROUNDS = 3
 ITERATIONS = 100
 
-SAMPLES = 2**20 # Array column size
+SAMPLES = 2**21 # Array column size
 
 DTYPE = "float32"
-#PKGS = [dpnp, np, cupy, af]
-PKGS = [cupy, arrayfire]
-#PKGS = [arrayfire]
-IDS = [pkg.__name__ for pkg in PKGS]
 
 @pytest.mark.parametrize(
     "pkg", PKGS, ids=IDS
@@ -45,25 +73,12 @@ class TestPi:
 def in_circle(x, y):
     return (x*x + y*y) < 1
 
-#def calc_pi_af(samples):
-#    af.random.set_seed(1)
-#    x = af.randu(samples)
-#    y = af.randu(samples)
-#    result =  4 * af.sum(in_circle(x, y)) / samples
-#
-#    af.eval(result)
-#    af.sync()
-#
-#    return result
-
 def calc_pi_af(samples):
     #af.set_seed(1)
     x = af.randu((samples,))
     y = af.randu((samples,))
     result =  4 * af.sum(in_circle(x, y)) / samples
-
-    #af.eval(result)
-    af.sync(0)
+    af.sync()
 
     return result
 
