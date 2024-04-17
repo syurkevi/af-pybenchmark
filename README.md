@@ -5,10 +5,8 @@ Set environment variable `DPNP_RAISE_EXCEPION_ON_NUMPY_FALLBACK` to 0.
 
 ## Setting up environment
 
-```sh
-    conda env create -f environment.yml
-    conda activate af-benchmark
-```
+todo: non-conda
+
 
 ## Running
 
@@ -27,6 +25,3 @@ To create graphs after creating the `results.json`, run:
     python graphs.py
 ```
 To modify the tests being shown modify the `tests` list at the top of the `graphs.py` file.
-
-Example:
-<img src="img/comparison.png"></img>
